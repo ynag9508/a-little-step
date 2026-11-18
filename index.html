@@ -46,9 +46,11 @@
       <div id="wordcard" class="hidden">
         <div id="wordcard-emoji">🍎</div>
         <div id="wordcard-word">apple</div>
+        <div id="wordcard-phonics" class="wordcard-phonics">a + pple</div>
         <div id="wordcard-zh">苹果</div>
         <div id="wordcard-sentence"></div>
         <button class="big-btn" id="wordcard-listen">🔊 再听一遍</button>
+        <button class="big-btn phonics-btn" id="wordcard-blend">🔤 拼一拼</button>
         <button class="big-btn speak-btn" id="wordcard-speak">🎤 跟读</button>
         <button class="big-btn primary" id="wordcard-ok">我学会啦 ✓</button>
       </div>
@@ -56,6 +58,7 @@
       <!-- 听音选词 quiz -->
       <div id="quiz" class="hidden">
         <div id="quiz-prompt">🔊 听一听，点一点</div>
+        <div id="quiz-phonics" class="quiz-phonics"></div>
         <button class="big-btn" id="quiz-listen">🔊 再听一遍</button>
         <button class="big-btn speak-btn" id="quiz-speak">🎤 说一遍</button>
         <div id="quiz-options"></div>
@@ -123,8 +126,24 @@
           <div id="panel-report" class="hidden">
             <div class="panel-title">学习报告</div>
             <div id="report-content"></div>
+            <div class="report-section-title">家长设置</div>
+            <div class="settings-row">
+              <label for="set-rest-min">👀 休息提醒间隔</label>
+              <select id="set-rest-min">
+                <option value="10">10 分钟</option>
+                <option value="15">15 分钟</option>
+                <option value="20">20 分钟</option>
+                <option value="30">30 分钟</option>
+                <option value="0">关闭</option>
+              </select>
+            </div>
+            <div class="settings-row">
+              <label for="set-hide-zh">🈶 练习时隐藏中文释义（鼓励直接建立英文—图连接）</label>
+              <input type="checkbox" id="set-hide-zh" />
+            </div>
             <div class="panel-actions">
               <button class="big-btn" id="btn-refresh-report">🔄 刷新</button>
+              <button class="big-btn" id="btn-copy-report">📋 复制周报</button>
               <button class="big-btn danger" id="btn-clear-progress">清空学习档案</button>
             </div>
           </div>

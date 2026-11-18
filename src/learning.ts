@@ -15,6 +15,8 @@
 import { resolveRoster, type LessonPack, type LessonWord, type StoryLine } from "./lesson";
 import { KIND_DEFAULTS } from "./villagers";
 import { speak, stopSpeak, sfx, listenOnce, isSpeechRecognitionAvailable, stopListen } from "./audio";
+import { phonicsOf, byDifficulty } from "./phonics";
+import { loadSettings } from "./settings";
 import {
   loadProgress,
   ensureWords,
@@ -100,14 +102,20 @@ export class LearningSession {
   private readonly cardWord = el("wordcard-word");
   private readonly cardZh = el("wordcard-zh");
   private readonly cardSentence = el("wordcard-sentence");
+  private readonly cardPhonics = el("wordcard-phonics");
   private readonly wordcardSpeak = el<HTMLButtonElement>("wordcard-speak");
   private readonly quizEl = el("quiz");
+  private readonly quizPhonics = el("quiz-phonics");
   private readonly quizOptionsEl = el("quiz-options");
   private readonly quizSpeak = el<HTMLButtonElement>("quiz-speak");
   private readonly taskList = el("task-list");
   private readonly starsCount = el("stars-count");
+  /** 家长设置：练习时是否隐藏中文释义 */
+  private readonly hideZh = loadSettings().hideZh;
 
   constructor(pack: LessonPack, hooks: LearningHooks) {
+    // 难度梯度：短词/简单词排在前面，符合 4-6 岁由具象到抽象的认知顺序
+    pack.words = [...pack.words].sort(byDifficulty);
     this.pack = pack;
     this.hooks = hooks;
     this.progress = loadProgress();
@@ -128,6 +136,10 @@ export class LearningSession {
       if (this.currentCard) this.speakCard(this.currentCard);
     });
     el("wordcard-ok").addEventListener("click", () => this.confirmCard());
+    // 🔤 拼一拼：慢速念 "b... bear"，建立首字母—发音连接
+    el("wordcard-blend").addEventListener("click", () => {
+      if (this.currentCard) speak(phonicsOf(this.currentCard.word).speak, { rate: 0.75 });
+    });
     el("quiz-listen").addEventListener("click", () => {
       if (this.quizWord) speak(this.quizWord.word);
     });
@@ -283,8 +295,12 @@ export class LearningSession {
     this.hideAll();
     this.cardEmoji.textContent = w.emoji;
     this.cardWord.textContent = w.word;
-    this.cardZh.textContent = w.zh;
-    this.cardSentence.textContent = `${w.sentence} ${w.sentenceZh}`;
+    // 自然拼读提示：b + ear
+    this.cardPhonics.textContent = phonicsOf(w.word).display;
+    // 隐藏中文释义：鼓励"图→音→义"直接连接（家长可在报告页开启）
+    this.cardZh.textContent = this.hideZh ? "" : w.zh;
+    this.cardZh.classList.toggle("hidden", this.hideZh);
+    this.cardSentence.textContent = this.hideZh ? w.sentence : `${w.sentence} ${w.sentenceZh}`;
     this.wordcardEl.classList.remove("hidden");
     this.speakCard(w);
   }
@@ -345,6 +361,8 @@ export class LearningSession {
     this.quizOptions = shuffle([picked, ...distractors]);
     this.quizLocked = false;
     this.renderQuizOptions();
+    // 首字母音提示：帮孩子建立"听到 /b/ → 想到 b 开头"的连接
+    this.quizPhonics.textContent = `🔤 首字母 ${phonicsOf(picked.word).onset.toUpperCase()}`;
     this.hideAll();
     this.quizEl.classList.remove("hidden");
     speak(this.quizWord.word);

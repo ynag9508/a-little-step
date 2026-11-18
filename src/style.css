@@ -535,6 +535,55 @@ body {
   z-index: 70;
 }
 /* ---------- 跟读按钮（可选功能） ---------- */
+/* ---------- 自然拼读提示 ---------- */
+.wordcard-phonics {
+  color: #7a5cc4;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  margin: 4px 0 2px;
+}
+.quiz-phonics {
+  color: #7a5cc4;
+  font-size: 14px;
+  font-weight: 800;
+  margin-top: 4px;
+  min-height: 18px;
+}
+.big-btn.phonics-btn {
+  background: #efe9fb;
+  color: #7a5cc4;
+  box-shadow: 0 3px #7a5cc426;
+}
+
+/* ---------- 家长设置行 ---------- */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid #eee4cf;
+  font-size: 13px;
+  color: var(--ink);
+}
+.settings-row label { flex: 1; line-height: 1.5; }
+.settings-row select {
+  font-family: var(--font);
+  font-size: 13px;
+  padding: 6px 8px;
+  border: 2px solid #e8dcc4;
+  border-radius: 10px;
+  background: #fffdf6;
+  color: var(--ink);
+}
+.settings-row input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
 .big-btn.speak-btn {
   background: #e6f4ea;
   color: #2f7d4f;

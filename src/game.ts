@@ -27,6 +27,7 @@ import {
   todayStat,
   recentDays,
 } from "./progress";
+import { loadSettings, saveSettings } from "./settings";
 import lessonPrompt from "./prompt-template.txt?raw";
 
 function el<T extends HTMLElement>(id: string): T {
@@ -137,6 +138,11 @@ export class Game {
   private nameplateBox!: HTMLElement;
   private readonly nameplates = new Map<string, { root: HTMLElement; quiz: HTMLElement }>();
 
+  // 用眼休息提醒：累计游戏时长（秒），到阈值弹温和提示
+  private playSeconds = 0;
+  private lastRestMinutes = 15;
+  private restShownAt = 0;
+
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
   }
@@ -195,6 +201,9 @@ export class Game {
       onBusyChange: (busy, name) => this.onBusyChange(busy, name),
       toast: (msg) => this.toast(msg),
     });
+
+    // 家长设置：休息间隔
+    this.lastRestMinutes = loadSettings().restMinutes;
 
     // ---------- HUD 初始化 ----------
     el("lesson-title").textContent = pack.title;
@@ -423,7 +432,20 @@ export class Game {
     this.updateNameplates();
     this.checkCelebration();
     this.settleVillagers();
+    this.tickRestReminder(dt);
     this.renderer.render(this.scene, this.camera);
+  }
+
+  /** 累计游戏时长，到阈值（家长可设）弹一次休息提醒；面板打开时暂停计时 */
+  private tickRestReminder(dt: number): void {
+    if (this.panelOpen || this.catchOpen || this.celebrating) return;
+    this.playSeconds += dt;
+    const threshold = this.lastRestMinutes * 60;
+    if (this.playSeconds - this.restShownAt >= threshold) {
+      this.restShownAt = this.playSeconds;
+      this.toast("👀 玩了一会啦，抬头看看远处的树，休息一下眼睛吧！", 6000);
+      sfx.chirp();
+    }
   }
 
   private updatePlayer(dt: number, t: number): void {
@@ -990,13 +1012,13 @@ export class Game {
     b.classList.remove("hidden");
   }
 
-  private toast(msg: string): void {
+  private toast(msg: string, durationMs = 2600): void {
     const t = document.createElement("div");
     t.className = "toast";
     t.textContent = msg;
     el("toasts").appendChild(t);
-    window.setTimeout(() => t.classList.add("out"), 2600);
-    window.setTimeout(() => t.remove(), 3000);
+    window.setTimeout(() => t.classList.add("out"), durationMs);
+    window.setTimeout(() => t.remove(), durationMs + 400);
   }
 
   // ---------- 家长面板 ----------
@@ -1027,6 +1049,33 @@ export class Game {
     el("tab-import").addEventListener("click", () => this.switchTab("import"));
     el("tab-report").addEventListener("click", () => this.switchTab("report"));
     el("btn-refresh-report").addEventListener("click", () => this.renderReport());
+    el("btn-copy-report").addEventListener("click", () => void this.copyWeeklyReport());
+
+    // 家长设置：休息间隔 / 隐藏中文
+    const s = loadSettings();
+    const restSel = el<HTMLSelectElement>("set-rest-min");
+    // "关闭"用 0 表示，但 settings 里最小 3；关闭时存 60（近似不提醒）并特殊处理
+    restSel.value = String(s.restMinutes);
+    restSel.addEventListener("change", () => {
+      const v = Number(restSel.value);
+      const cfg = loadSettings();
+      // 0 = 关闭 → 存 60 分钟（实际游玩很难达到，等同关闭）
+      cfg.restMinutes = v === 0 ? 60 : v;
+      saveSettings(cfg);
+      this.lastRestMinutes = cfg.restMinutes;
+      this.playSeconds = 0;
+      this.restShownAt = 0;
+      this.toast(v === 0 ? "已关闭休息提醒" : `休息提醒已设为每 ${v} 分钟`);
+    });
+    const hideZh = el<HTMLInputElement>("set-hide-zh");
+    hideZh.checked = s.hideZh;
+    hideZh.addEventListener("change", () => {
+      const cfg = loadSettings();
+      cfg.hideZh = hideZh.checked;
+      saveSettings(cfg);
+      this.toast(hideZh.checked ? "下次课程起隐藏中文释义" : "已恢复显示中文释义");
+    });
+
     el("btn-clear-progress").addEventListener("click", () => {
       if (window.confirm("确定清空全部学习档案吗？\n\n包括熟练度、错词本、连续天数和每日记录，此操作不可恢复。")) {
         clearProgress();
@@ -1090,6 +1139,36 @@ export class Game {
       : `<div class="report-section-title">错词本</div><div class="report-empty">🎉 太棒了，目前没有需要加强的词！</div>`;
 
     el("report-content").innerHTML = statsHtml + recentHtml + wrongHtml;
+  }
+
+  /** 生成可读的一周学习小结并复制到剪贴板，方便家长发给老师/家人 */
+  private async copyWeeklyReport(): Promise<void> {
+    const data = loadProgress();
+    const recent = recentDays(data, 7);
+    const weekAnswered = recent.reduce((n, d) => n + d.answered, 0);
+    const weekCorrect = recent.reduce((n, d) => n + d.correct, 0);
+    const weekSpoken = recent.reduce((n, d) => n + d.spoken, 0);
+    const rate = weekAnswered ? Math.round((weekCorrect / weekAnswered) * 100) : 0;
+    const wrong = wrongWords(data);
+    const mastered = masteredCount(data);
+
+    const text = [
+      "📊 每天一小步 · 本周学习小结",
+      `连续学习：${data.streak} 天`,
+      `已掌握单词：${mastered} 个`,
+      `本周答题：${weekAnswered} 次，正确率 ${rate}%`,
+      `本周开口跟读：${weekSpoken} 次`,
+      wrong.length ? `需要多练：${wrong.slice(0, 8).map((w) => `${w.word}(${w.zh})`).join("、")}` : "错词本：暂无，全部掌握！",
+      "—— 来自「每天一小步」英语启蒙小岛",
+    ].join("\n");
+
+    try {
+      await navigator.clipboard.writeText(text);
+      this.toast("周报已复制，可以发给你关心的人啦 📋");
+    } catch {
+      // 剪贴板不可用（如 http 环境）：用 confirm 展示文本，家长可手动选中复制
+      window.alert(`自动复制不可用，请手动复制下面内容：\n\n${text}`);
+    }
   }
 
   private openPanel(): void {
