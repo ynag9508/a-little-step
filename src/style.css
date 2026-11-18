@@ -534,6 +534,99 @@ body {
   pointer-events: auto;
   z-index: 70;
 }
+/* ---------- 跟读按钮（可选功能） ---------- */
+.big-btn.speak-btn {
+  background: #e6f4ea;
+  color: #2f7d4f;
+  box-shadow: 0 3px #2f7d4f26;
+}
+.big-btn.speak-btn.listening {
+  background: #ffe0b2;
+  color: #a85b00;
+  animation: speak-pulse 1s ease-in-out infinite alternate;
+}
+@keyframes speak-pulse {
+  from { transform: scale(1); }
+  to { transform: scale(1.03); }
+}
+
+/* ---------- 家长面板：标签页 ---------- */
+.panel-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  border-bottom: 2px solid #e8dcc4;
+}
+.panel-tab {
+  flex: 1;
+  padding: 10px;
+  font-family: var(--font);
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--ink-soft);
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  margin-bottom: -2px;
+}
+.panel-tab.active {
+  color: var(--accent-dark);
+  border-bottom-color: var(--accent);
+}
+
+/* ---------- 学习报告 ---------- */
+.report-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin: 14px 0;
+}
+.report-stat {
+  background: #fff8e8;
+  border-radius: 14px;
+  padding: 12px;
+  text-align: center;
+}
+.report-stat .num {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--accent-dark);
+}
+.report-stat .label {
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-top: 2px;
+}
+.report-section-title {
+  font-size: 15px;
+  font-weight: 800;
+  margin: 16px 0 8px;
+}
+.report-word-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid #eee4cf;
+  font-size: 14px;
+}
+.report-word-row .rw-emoji { font-size: 20px; }
+.report-word-row .rw-word { font-weight: 800; min-width: 60px; }
+.report-word-row .rw-zh { color: var(--ink-soft); flex: 1; }
+.report-word-row .rw-level { color: var(--accent-dark); font-size: 12px; white-space: nowrap; }
+.report-empty {
+  color: var(--ink-soft);
+  font-size: 14px;
+  padding: 12px;
+  text-align: center;
+}
+.big-btn.danger {
+  background: #fde8e8;
+  color: #b93a3a;
+  box-shadow: 0 3px #b93a3a26;
+}
+
 .panel-card {
   width: min(560px, 92vw);
   max-height: 88vh;

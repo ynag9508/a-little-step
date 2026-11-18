@@ -19,6 +19,14 @@ import { buildInteriors, type Room } from "./interiors";
 import { buildBoat, updateBoatVisual, showSplash, type Boat } from "./boat";
 import { LearningSession } from "./learning";
 import { sfx, speak, stopSpeak } from "./audio";
+import {
+  loadProgress,
+  clearProgress,
+  masteredCount,
+  wrongWords,
+  todayStat,
+  recentDays,
+} from "./progress";
 import lessonPrompt from "./prompt-template.txt?raw";
 
 function el<T extends HTMLElement>(id: string): T {
@@ -1014,12 +1022,81 @@ export class Game {
       resetLessonPack();
       location.reload();
     });
+
+    // 标签页：导入课程 / 学习报告
+    el("tab-import").addEventListener("click", () => this.switchTab("import"));
+    el("tab-report").addEventListener("click", () => this.switchTab("report"));
+    el("btn-refresh-report").addEventListener("click", () => this.renderReport());
+    el("btn-clear-progress").addEventListener("click", () => {
+      if (window.confirm("确定清空全部学习档案吗？\n\n包括熟练度、错词本、连续天数和每日记录，此操作不可恢复。")) {
+        clearProgress();
+        this.toast("学习档案已清空");
+        this.renderReport();
+      }
+    });
+  }
+
+  private switchTab(which: "import" | "report"): void {
+    const isImport = which === "import";
+    el("panel-import").classList.toggle("hidden", !isImport);
+    el("panel-report").classList.toggle("hidden", isImport);
+    el("tab-import").classList.toggle("active", isImport);
+    el("tab-report").classList.toggle("active", !isImport);
+    if (!isImport) this.renderReport();
+  }
+
+  /** 渲染学习报告：连续天数、掌握词数、错词本、最近 7 天 */
+  private renderReport(): void {
+    const data = loadProgress();
+    const stat = todayStat(data);
+    const mastered = masteredCount(data);
+    const total = Object.keys(data.words).length;
+    const wrong = wrongWords(data);
+    const recent = recentDays(data, 7);
+    const acc = stat.answered > 0 ? Math.round((stat.correct / stat.answered) * 100) : 0;
+
+    const esc = (s: string) =>
+      s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+
+    const statsHtml = `
+      <div class="report-stats">
+        <div class="report-stat"><div class="num">🔥 ${data.streak}</div><div class="label">连续学习天数</div></div>
+        <div class="report-stat"><div class="num">⭐ ${mastered}/${total}</div><div class="label">已掌握 / 总词数</div></div>
+        <div class="report-stat"><div class="num">${stat.answered}</div><div class="label">今日答题</div></div>
+        <div class="report-stat"><div class="num">${acc}%</div><div class="label">今日正确率</div></div>
+      </div>`;
+
+    const recentHtml = `
+      <div class="report-section-title">最近 7 天</div>
+      <div class="report-word-row" style="justify-content:space-between">
+        ${recent
+          .map((d) => `<span style="font-size:12px;color:${d.answered ? "var(--accent-dark)" : "var(--ink-soft)"};text-align:center">${d.date.slice(5)}<br>${d.answered || "·"}</span>`)
+          .join("")}
+      </div>`;
+
+    const wrongHtml = wrong.length
+      ? `<div class="report-section-title">错词本（还需多练）</div>
+         ${wrong
+           .slice(0, 8)
+           .map(
+             (w) => `<div class="report-word-row">
+               <span class="rw-emoji">${esc(w.emoji)}</span>
+               <span class="rw-word">${esc(w.word)}</span>
+               <span class="rw-zh">${esc(w.zh)}</span>
+               <span class="rw-level">答错 ${w.wrong} 次</span>
+             </div>`
+           )
+           .join("")}`
+      : `<div class="report-section-title">错词本</div><div class="report-empty">🎉 太棒了，目前没有需要加强的词！</div>`;
+
+    el("report-content").innerHTML = statsHtml + recentHtml + wrongHtml;
   }
 
   private openPanel(): void {
     this.panelOpen = true;
     stopSpeak(); // 打开面板时暂停说话
     el("import-error").textContent = "";
+    this.switchTab("import"); // 默认回到"导入课程"，保持原有行为
     el("parent-panel").classList.remove("hidden");
   }
 

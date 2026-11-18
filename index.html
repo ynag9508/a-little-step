@@ -49,6 +49,7 @@
         <div id="wordcard-zh">苹果</div>
         <div id="wordcard-sentence"></div>
         <button class="big-btn" id="wordcard-listen">🔊 再听一遍</button>
+        <button class="big-btn speak-btn" id="wordcard-speak">🎤 跟读</button>
         <button class="big-btn primary" id="wordcard-ok">我学会啦 ✓</button>
       </div>
 
@@ -56,6 +57,7 @@
       <div id="quiz" class="hidden">
         <div id="quiz-prompt">🔊 听一听，点一点</div>
         <button class="big-btn" id="quiz-listen">🔊 再听一遍</button>
+        <button class="big-btn speak-btn" id="quiz-speak">🎤 说一遍</button>
         <div id="quiz-options"></div>
       </div>
 
@@ -79,9 +81,14 @@
       <button id="btn-interact" class="hidden">💬</button>
       <button id="btn-fish" class="hidden">🎣</button>
 
-      <!-- 家长面板：导入课程包 -->
+      <!-- 家长面板：导入课程包 / 学习报告 -->
       <div id="parent-panel" class="hidden">
         <div class="panel-card">
+          <div class="panel-tabs">
+            <button class="panel-tab active" id="tab-import">导入课程</button>
+            <button class="panel-tab" id="tab-report">📊 学习报告</button>
+          </div>
+          <div id="panel-import">
           <div class="panel-title">导入今日课程</div>
           <div class="panel-steps">
             <div class="step">
@@ -111,6 +118,16 @@
             <button class="big-btn" id="btn-close-parent">关闭</button>
           </div>
           <input type="file" id="import-file" accept=".json,application/json" class="hidden" />
+          </div><!-- /#panel-import -->
+
+          <div id="panel-report" class="hidden">
+            <div class="panel-title">学习报告</div>
+            <div id="report-content"></div>
+            <div class="panel-actions">
+              <button class="big-btn" id="btn-refresh-report">🔄 刷新</button>
+              <button class="big-btn danger" id="btn-clear-progress">清空学习档案</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

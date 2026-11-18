@@ -160,3 +160,163 @@ export function stopSpeak(): void {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
   window.speechSynthesis.cancel();
 }
+
+// ---------- 语音识别（跟读）----------
+// 浏览器支持度不一：Chrome/Edge 支持 webkitSpeechRecognition，Safari 部分支持，
+// 无麦克风/无网络/headless 环境不可用。因此全部能力探测 + 超时兜底，
+// 识别只是"锦上添花"的发音练习，绝不阻断核心学习流程。
+
+interface SpeechAlt {
+  transcript: string;
+}
+interface SpeechRes {
+  isFinal: boolean;
+  length: number;
+  [i: number]: SpeechAlt;
+}
+interface SpeechResList {
+  length: number;
+  [i: number]: SpeechRes;
+}
+interface SpeechEvent extends Event {
+  results: SpeechResList;
+}
+interface SpeechErrorEvent extends Event {
+  error: string;
+}
+interface RecognitionLike {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  maxAlternatives: number;
+  onresult: ((e: SpeechEvent) => void) | null;
+  onerror: ((e: SpeechErrorEvent) => void) | null;
+  onend: (() => void) | null;
+  start(): void;
+  stop(): void;
+  abort(): void;
+}
+type RecognitionCtor = new () => RecognitionLike;
+
+function recognitionCtor(): RecognitionCtor | null {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as {
+    SpeechRecognition?: RecognitionCtor;
+    webkitSpeechRecognition?: RecognitionCtor;
+  };
+  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
+}
+
+/** 当前设备/浏览器能否做语音识别（决定是否显示 🎤 按钮） */
+export function isSpeechRecognitionAvailable(): boolean {
+  return recognitionCtor() !== null;
+}
+
+let activeRecognition: RecognitionLike | null = null;
+
+/** 归一化：小写 + 去标点 + 合并空格，让孩子发音容错更大 */
+function normalizeSpoken(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s']/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** 判断孩子说的内容是否命中目标词：完全相等，或作为独立词出现 */
+export function spokenMatches(target: string, transcript: string): boolean {
+  const t = normalizeSpoken(target);
+  const said = normalizeSpoken(transcript);
+  if (!t || !said) return false;
+  if (said === t) return true;
+  // "a apple" / "the apple" / "apple pie" 都算命中目标词
+  return new RegExp(`(^|\\s)${t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\s|$)`).test(said);
+}
+
+/**
+ * 启动一次跟读识别。
+ * 回调 onDone(matched, heard) 保证只触发一次；超时/错误/无结果都回 false。
+ * timeoutMs 后自动结束，避免孩子对着没反应的麦克风发呆。
+ */
+export function listenOnce(
+  target: string,
+  onDone: (matched: boolean, heard: string) => void,
+  timeoutMs = 6000
+): void {
+  const Ctor = recognitionCtor();
+  if (!Ctor) {
+    onDone(false, "");
+    return;
+  }
+  stopListen(); // 先结束上一次
+  let rec: RecognitionLike;
+  try {
+    rec = new Ctor();
+  } catch {
+    onDone(false, "");
+    return;
+  }
+  activeRecognition = rec;
+  rec.lang = "en-US";
+  rec.continuous = false;
+  rec.interimResults = false;
+  rec.maxAlternatives = 3;
+
+  let done = false;
+  let timer = 0;
+  const finish = (matched: boolean, heard: string) => {
+    if (done) return;
+    done = true;
+    window.clearTimeout(timer);
+    try {
+      rec.onresult = null;
+      rec.onerror = null;
+      rec.onend = null;
+      rec.stop();
+    } catch {
+      /* ignore */
+    }
+    if (activeRecognition === rec) activeRecognition = null;
+    onDone(matched, heard);
+  };
+
+  rec.onresult = (e: SpeechEvent) => {
+    let best = "";
+    let matched = false;
+    for (let i = 0; i < e.results.length; i++) {
+      const res = e.results[i];
+      for (let j = 0; j < res.length; j++) {
+        const alt = res[j]?.transcript ?? "";
+        if (!best) best = alt;
+        if (spokenMatches(target, alt)) matched = true;
+      }
+    }
+    finish(matched, best);
+  };
+  rec.onerror = () => finish(false, "");
+  rec.onend = () => {
+    // 没有拿到任何结果就结束了（例如没说话）
+    if (!done) finish(false, "");
+  };
+  timer = window.setTimeout(() => finish(false, ""), timeoutMs);
+
+  try {
+    rec.start();
+  } catch {
+    finish(false, "");
+  }
+}
+
+/** 主动取消当前识别（关闭面板/离开发音环节时调用） */
+export function stopListen(): void {
+  if (!activeRecognition) return;
+  try {
+    activeRecognition.onresult = null;
+    activeRecognition.onerror = null;
+    activeRecognition.onend = null;
+    activeRecognition.abort();
+  } catch {
+    /* ignore */
+  }
+  activeRecognition = null;
+}

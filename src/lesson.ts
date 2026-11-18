@@ -6,6 +6,8 @@
  * 本格式的 JSON，粘贴进应用即可生成当日的预习/复习内容。
  */
 
+import samplePack from "./sample.json";
+
 export interface LessonWord {
   /** 英文单词，如 "apple" */
   word: string;
@@ -165,8 +167,8 @@ export async function loadLessonPack(): Promise<LessonPack> {
       localStorage.removeItem(STORAGE_KEY); // 存了坏数据就丢弃
     }
   }
-  const res = await fetch("lessons/sample.json");
-  return (await res.json()) as LessonPack;
+  // 内置示例课程：直接内联，避免额外网络请求（分享链接带 sharecode 时子资源会被拦截）
+  return samplePack as LessonPack;
 }
 
 /** 保存家长导入的课程包（下次打开自动恢复）。 */
